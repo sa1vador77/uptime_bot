@@ -1,4 +1,8 @@
+from loguru import logger
+
 from collections.abc import AsyncGenerator
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from src.core.config import settings
@@ -24,6 +28,17 @@ class DatabaseManager:
             class_=AsyncSession,
             expire_on_commit=False
         )
+        
+    async def health_check(self) -> bool:
+        """Проверяет соединение с БД, выполняя простой запрос."""
+        try:
+            async with self.engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            logger.info("Подключение к базе данных: OK")
+            return True
+        except Exception as e:
+            logger.critical(f"Ошибка подключения к БД: {e}")
+            return False
 
     async def close(self):
         """Корректное закрытие соединения с БД при остановке бота."""
