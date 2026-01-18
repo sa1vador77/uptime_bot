@@ -17,11 +17,11 @@ class LoggingMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        
+
         # Извлекаем пользователя из data
         user = data.get("event_from_user")
         user_id = user.id if user else "unknown"
-        
+
         # Определяем тип действия для логов
         action = "unknown"
         update_id = "unknown"
@@ -29,7 +29,9 @@ class LoggingMiddleware(BaseMiddleware):
         if isinstance(event, Update):
             update_id = event.update_id
             if event.message and event.message.text:
-                action = f"message: {event.message.text[:20]}" # Обрезаем длинные сообщения
+                action = (
+                    f"message: {event.message.text[:20]}"  # Обрезаем длинные сообщения
+                )
             elif event.callback_query:
                 action = f"callback: {event.callback_query.data}"
 

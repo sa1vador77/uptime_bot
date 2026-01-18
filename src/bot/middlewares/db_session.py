@@ -13,6 +13,7 @@ class DbSessionMiddleware(BaseMiddleware):
     Миддлварь для управления сессией подключения к БД.
     Берет async_sessionmaker из диспетчера, создает сессию и экземпляр MonitorRepository.
     """
+
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
         super().__init__()
         self.session_factory = session_factory
@@ -26,18 +27,18 @@ class DbSessionMiddleware(BaseMiddleware):
         async with self.session_factory() as session:
             # Создаем репозиторий с текущей сессией
             repo = MonitorRepository(session)
-            
+
             # Прокидываем репозиторий в handler
             data["repo"] = repo
-            
+
             try:
                 # Вызываем хендлер
                 result = await handler(event, data)
-                
+
                 # Если хендлер отработал без ошибок — коммитим транзакцию
                 await session.commit()
                 return result
-                
+
             except Exception:
                 # Если была ошибка — откатываем изменения
                 await session.rollback()

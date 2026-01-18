@@ -16,7 +16,7 @@ class MonitorRepository:
         self.session = session
 
     async def add_monitor(
-        self, 
+        self,
         url: str,
         user_id: int,
         interval: int = 300,
@@ -29,11 +29,11 @@ class MonitorRepository:
             user_id=user_id,
             url=url,
             check_interval=interval,
-            name=name or url, # Если имя не задано, используем URL
-            is_active=True
+            name=name or url,  # Если имя не задано, используем URL
+            is_active=True,
         )
         self.session.add(monitor)
-        await self.session.flush() 
+        await self.session.flush()
         return monitor
 
     async def get_user_monitors(self, user_id: int) -> Sequence[MonitorModel]:
@@ -47,7 +47,7 @@ class MonitorRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
-    
+
     async def get_monitor_by_id(self, monitor_id: int) -> MonitorModel | None:
         """
         Получает монитор по ID.
@@ -60,11 +60,10 @@ class MonitorRepository:
         Возвращает True, если удаление прошло успешно.
         """
         stmt = delete(MonitorModel).where(
-            MonitorModel.id == monitor_id,
-            MonitorModel.user_id == user_id
+            MonitorModel.id == monitor_id, MonitorModel.user_id == user_id
         )
         result = await self.session.execute(stmt)
-        return result.rowcount > 0 # type: ignore
+        return result.rowcount > 0  # type: ignore
 
     async def get_active_monitors(self) -> Sequence[MonitorModel]:
         """

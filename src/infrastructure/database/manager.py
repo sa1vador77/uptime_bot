@@ -21,14 +21,12 @@ class DatabaseManager:
             db_url,
             echo=echo,
         )
-        
+
         # Фабрика сессий. expire_on_commit=False обязателен для async
         self.session_maker = async_sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
-        
+
     async def health_check(self) -> bool:
         """Проверяет соединение с БД, выполняя простой запрос."""
         try:
@@ -48,7 +46,7 @@ class DatabaseManager:
 # Глобальный экземпляр менеджера БД
 db_manager = DatabaseManager(
     db_url=settings.DB_URL,
-    echo=settings.DB_ECHO, 
+    echo=settings.DB_ECHO,
 )
 
 

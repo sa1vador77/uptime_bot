@@ -37,7 +37,9 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     """
     Генерация главной клавиатуры бота.
     """
-    
-    kb = render_reply_kb(2, 2, buttons=list([value for value in Buttons.START.values()]))
+
+    kb = render_reply_kb(
+        2, 2, buttons=list([value for value in Buttons.START.values()])
+    )
 
     return kb
