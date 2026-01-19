@@ -20,7 +20,7 @@ async def cmd_start(message: Message, repo: MonitorRepository):
 
     text = Texts.Start.WELCOME
     if user_monitors:
-        text += f"\n\nУ вас уже отслеживается сайтов: <b>{len(user_monitors)}</b>"
+        text += Texts.Start.FOLLOWED_SITES.format(len(user_monitors))
 
     await message.answer(
         text=text,
