@@ -5,12 +5,18 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from src.core.config import settings
 from src.core.logger import configure_logger
 from src.bot.middlewares import DbSessionMiddleware, LoggingMiddleware
 from src.infrastructure.database.manager import db_manager
+from src.infrastructure.scheduler.tasks import monitoring_task
 
-from src.bot.handlers import user_router
+from src.bot.handlers import (
+    user_router,
+    monitor_router,
+)
 
 
 async def main():
@@ -33,8 +39,15 @@ async def main():
     dp.update.middleware(DbSessionMiddleware(session_factory=db_manager.session_maker))
 
     # 5. Регистрация роутеров
-    dp.include_router(user_router)
+    dp.include_routers(
+        user_router,
+        monitor_router,
+    )
 
+    scheduler = AsyncIOScheduler()
+    # Добавляем задачу (раз в 60 секунд)
+    scheduler.add_job(monitoring_task, "interval", seconds=60, args=[bot])
+    scheduler.start()
     # 6. Запуск polling
     try:
         # Удаляем вебхук и дропаем накопившиеся апдейты (чтобы бот не отвечал на старое)

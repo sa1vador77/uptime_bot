@@ -1,4 +1,5 @@
 from .user import user_router
+from .monitor import monitor_router
 
 
 __all__ = [

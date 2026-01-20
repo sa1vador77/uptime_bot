@@ -20,7 +20,6 @@ class MonitorRepository:
         url: str,
         user_id: int,
         interval: int = 300,
-        name: str | None = None,
     ) -> MonitorModel:
         """
         Добавляет новый монитор в базу данных.
@@ -29,7 +28,6 @@ class MonitorRepository:
             user_id=user_id,
             url=url,
             check_interval=interval,
-            name=name or url,  # Если имя не задано, используем URL
             is_active=True,
         )
         self.session.add(monitor)
