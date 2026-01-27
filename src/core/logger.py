@@ -1,11 +1,13 @@
 import sys
 import json
 import logging
+from typing import Any
 from pathlib import Path
+
 from loguru import logger as _logger
 
 
-def _serialize_extra(record: dict) -> str:
+def _serialize_extra(record: dict[str, Any]) -> str:
     """Форматирует extra параметры для логов.
 
     Args:
@@ -17,13 +19,12 @@ def _serialize_extra(record: dict) -> str:
     extra = record["extra"]
     if not extra:
         return ""
-
     # Конвертируем все значения в строки
     items = [f"{k}: {repr(v)}" for k, v in extra.items()]
     return " -> " + " | ".join(items)
 
 
-def _format_console(record: dict) -> str:
+def _format_console(record: dict[str, Any]) -> str:
     """Форматирует лог для консоли с цветами.
 
     Args:
@@ -43,7 +44,7 @@ def _format_console(record: dict) -> str:
     )
 
 
-def _format_file(record: dict) -> str:
+def _format_file(record: dict[str, Any]) -> str:
     """Форматирует лог для файла (без цветов).
 
     Args:
@@ -63,7 +64,7 @@ def _format_file(record: dict) -> str:
     )
 
 
-def _format_json(record: dict) -> str:
+def _format_json(record: dict[str, Any]) -> str:
     """Форматирует лог в JSON для ошибок.
 
     Args:
@@ -77,29 +78,35 @@ def _format_json(record: dict) -> str:
         "level": record["level"].name,
         "message": record["message"],
         "location": f"{record['name']}:{record['function']}:{record['line']}",
-        "extra": record["extra"],  # Все extra параметры в JSON
+        "extra": record["extra"],
     }
-    return json.dumps(payload, ensure_ascii=False) + "\n"
+    return json.dumps(payload, ensure_ascii=False, default=str) + "\n"
 
 
 class InterceptHandler(logging.Handler):
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         # Получаем level
         try:
-            level = logger.level(record.levelname).name
+            level: str | int = _logger.level(record.levelname).name
         except ValueError:
             level = record.levelno
 
         # Ищем, откуда вызван logging.info()
-        frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:
+        frame = logging.currentframe()
+        depth = 2
+
+        while frame is not None and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
 
         # Отправляем в loguru с правильной глубиной
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
+        _logger.opt(depth=depth, exception=record.exc_info).log(
+            level,
+            record.getMessage(),
         )
+
+
+_CONFIGURED = False
 
 
 def configure_logger() -> None:
@@ -110,7 +117,11 @@ def configure_logger() -> None:
     - App log: все логи в файл с параметрами
     - Errors JSON: ошибки в JSON формате
     """
+    global _CONFIGURED
 
+    if _CONFIGURED:
+        return
+    _CONFIGURED = True
     # Удаляем дефолтный handler
     _logger.remove()
 
@@ -144,11 +155,10 @@ def configure_logger() -> None:
         retention="30 days",
     )
 
-    logging.basicConfig(handlers=[InterceptHandler()], level=logging.INFO, force=True)
+    logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
 
 # Конфигурируем при импорте
 configure_logger()
-
 # Экспортируем логгер
 logger = _logger

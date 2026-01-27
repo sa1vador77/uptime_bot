@@ -14,7 +14,7 @@ class DatabaseManager:
     Инкапсулирует создание движка (engine) и фабрики сессий.
     """
 
-    def __init__(self, db_url: str, echo: bool = False):
+    def __init__(self, db_url: str, echo: bool = False) -> None:
         # Создаем асинхронный движок
         # echo=True будет выводить все SQL запросы в консоль (полезно для отладки)
         self.engine = create_async_engine(
@@ -22,9 +22,11 @@ class DatabaseManager:
             echo=echo,
         )
 
-        # Фабрика сессий. expire_on_commit=False обязателен для async
+        # Фабрика сессий. expire_on_commit=False чтобы избежать проблем с “expired attributes”
         self.session_maker = async_sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False
+            self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
         )
 
     async def health_check(self) -> bool:
@@ -34,11 +36,11 @@ class DatabaseManager:
                 await conn.execute(text("SELECT 1"))
             logger.info("Подключение к базе данных: OK")
             return True
-        except Exception as e:
-            logger.critical(f"Ошибка подключения к БД: {e}")
+        except Exception:
+            logger.exception("Ошибка подключения к БД")
             return False
 
-    async def close(self):
+    async def close(self) -> None:
         """Корректное закрытие соединения с БД при остановке бота."""
         await self.engine.dispose()
 
@@ -50,7 +52,7 @@ db_manager = DatabaseManager(
 )
 
 
-async def get_session() -> AsyncGenerator:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Генератор сессий.
     Возвращает асинхронный генератор, который yield-ит сессию.

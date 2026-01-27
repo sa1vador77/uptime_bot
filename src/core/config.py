@@ -1,4 +1,6 @@
-from pydantic import SecretStr
+from functools import lru_cache
+
+from pydantic import SecretStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +12,9 @@ class Settings(BaseSettings):
 
     # Telegram
     BOT_TOKEN: SecretStr
-    ADMIN_IDS: list[int]  # Ожидает формат JSON в .env: ADMIN_IDS=[123, 456]
+    ADMIN_IDS: set[int] = Field(
+        default_factory=set
+    )  # Формат JSON в .env: ADMIN_IDS=[123, 456]
 
     # Database
     DB_URL: str = "sqlite+aiosqlite:///uptime.db"
@@ -28,4 +32,9 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

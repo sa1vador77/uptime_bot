@@ -4,4 +4,5 @@ from .monitor import monitor_router
 
 __all__ = [
     "user_router",
+    "monitor_router",
 ]

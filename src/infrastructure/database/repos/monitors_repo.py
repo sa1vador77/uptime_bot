@@ -12,7 +12,7 @@ class MonitorRepository:
     Инкапсулирует SQL-запросы.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def add_monitor(
@@ -58,15 +58,16 @@ class MonitorRepository:
         Возвращает True, если удаление прошло успешно.
         """
         stmt = delete(MonitorModel).where(
-            MonitorModel.id == monitor_id, MonitorModel.user_id == user_id
+            MonitorModel.id == monitor_id,
+            MonitorModel.user_id == user_id,
         )
         result = await self.session.execute(stmt)
-        return result.rowcount > 0  # type: ignore
+        return (result.rowcount or 0) > 0
 
     async def get_active_monitors(self) -> Sequence[MonitorModel]:
         """
         Возвращает ВСЕ активные мониторы для планировщика задач.
         """
-        stmt = select(MonitorModel).where(MonitorModel.is_active == True)
+        stmt = select(MonitorModel).where(MonitorModel.is_active.is_(True))
         result = await self.session.execute(stmt)
         return result.scalars().all()

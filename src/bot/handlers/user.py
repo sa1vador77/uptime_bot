@@ -11,18 +11,20 @@ user_router = Router()
 
 
 @user_router.message(CommandStart())
-async def cmd_start(message: Message, repo: MonitorRepository):
+async def cmd_start(message: Message, repo: MonitorRepository) -> None:
     """
     Обработчик команды /start.
     """
+    user = message.from_user
+    if user is None:
+        await message.answer(text=Texts.Start.WELCOME, reply_markup=main_menu_kb())
+        return
+
     # Пример использования репозитория (пока просто для теста коннекта)
-    user_monitors = await repo.get_user_monitors(user_id=message.from_user.id)
+    user_monitors = await repo.get_user_monitors(user_id=user.id)
 
     text = Texts.Start.WELCOME
     if user_monitors:
         text += Texts.Start.FOLLOWED_SITES.format(len(user_monitors))
 
-    await message.answer(
-        text=text,
-        reply_markup=main_menu_kb(),
-    )
+    await message.answer(text=text, reply_markup=main_menu_kb())

@@ -10,9 +10,7 @@ def render_reply_kb(*row_sizes: int, buttons: Sequence[str]) -> ReplyKeyboardMar
     """Создаёт Reply-клавиатуру по списку подписей и схеме рядов.
 
     На основе переданных подписей создаёт кнопки и распределяет их по рядам
-    с помощью ReplyKeyboardBuilder.adjust(). Например, схема (2, 1) означает,
-    что в первом ряду будет 2 кнопки, во втором — 1, оставшиеся кнопки
-    будут автоматически распределены по последнему размеру.
+    с помощью ReplyKeyboardBuilder.adjust().
 
     Args:
         *row_sizes: Размеры рядов (по количеству кнопок в каждом ряду),
@@ -38,8 +36,4 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
     Генерация главной клавиатуры бота.
     """
 
-    kb = render_reply_kb(
-        2, 2, buttons=list([value for value in Buttons.START.values()])
-    )
-
-    return kb
+    return render_reply_kb(2, 2, buttons=list(Buttons.START.values()))

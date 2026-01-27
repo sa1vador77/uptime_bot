@@ -1,7 +1,8 @@
+from loguru import logger
 from typing import Callable, Awaitable, Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import TelegramObject
+from aiogram.types import Update
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
@@ -14,32 +15,32 @@ class DbSessionMiddleware(BaseMiddleware):
     Берет async_sessionmaker из диспетчера, создает сессию и экземпляр MonitorRepository.
     """
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__()
         self.session_factory = session_factory
 
     async def __call__(
         self,
-        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
-        event: TelegramObject,
+        handler: Callable[[Update, dict[str, Any]], Awaitable[Any]],
+        event: Update,
         data: dict[str, Any],
     ) -> Any:
         async with self.session_factory() as session:
-            # Создаем репозиторий с текущей сессией
-            repo = MonitorRepository(session)
-
             # Прокидываем репозиторий в handler
-            data["repo"] = repo
+            data["repo"] = MonitorRepository(session)
 
             try:
                 # Вызываем хендлер
                 result = await handler(event, data)
 
-                # Если хендлер отработал без ошибок — коммитим транзакцию
-                await session.commit()
+                # Коммит только если есть что коммитить
+                if session.new or session.dirty or session.deleted:
+                    await session.commit()
+
                 return result
 
             except Exception:
+                logger.exception("Необработанная ошибка в хэндлере; откат транзакции")
                 # Если была ошибка — откатываем изменения
                 await session.rollback()
                 raise

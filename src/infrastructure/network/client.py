@@ -3,7 +3,8 @@ import time
 import asyncio
 import aiohttp
 
-from datetime import datetime
+from typing import Final
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 
@@ -24,65 +25,63 @@ class NetworkClient:
     и получения информации об SSL сертификатах.
     """
 
-    def __init__(self, timeout: int = 10):
+    _CERT_TIME_FMT: Final[str] = "%b %d %H:%M:%S %Y %Z"
+
+    def __init__(self, timeout: int = 10) -> None:
         self.timeout = aiohttp.ClientTimeout(total=timeout)
+
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        self._connector = aiohttp.TCPConnector(ssl=ssl_context)
+        self._session = aiohttp.ClientSession(
+            timeout=self._timeout, connector=self._connector
+        )
+
+    async def close(self) -> None:
+        await self._session.close()
+        await self._connector.close()
 
     async def check_url(self, url: str) -> CheckResult:
         result = CheckResult(url=url)
         start_time = time.perf_counter()
 
         try:
-            # Создаем SSL контекст, который не проверяет валидность цепочки (check_hostname=False),
-            # чтобы мы могли получить данные сертификата даже если он просрочен или самоподписан.
-            # Но для продакшена лучше использовать verify_mode=ssl.CERT_REQUIRED если нужна строгость.
-            # Здесь цель - мониторинг, так что нам важнее получить данные, чем упасть с ошибкой.
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
+            # Используем GET, чтобы получить и заголовки, и тело
+            async with self._session.get(url) as response:
+                result.status_code = response.status
+                # Считаем сайт живым, если код < 500
+                result.is_up = 200 <= response.status < 500
 
-            connector = aiohttp.TCPConnector(ssl=ssl_context)
-
-            async with aiohttp.ClientSession(
-                timeout=self.timeout, connector=connector
-            ) as session:
-                # Используем GET, чтобы получить и заголовки, и тело
-                async with session.get(url) as response:
-                    result.status_code = response.status
-                    # Считаем сайт живым, если код < 500 (даже 404 означает, что сервер отвечает)
-                    result.is_up = 200 <= response.status < 400
-
-                    # Извлечение SSL сертификата
-                    if (
-                        url.startswith("https://")
-                        and response.connection
-                        and response.connection.transport
-                    ):
-                        ssl_object = response.connection.transport.get_extra_info(
-                            "ssl_object"
-                        )
-                        if ssl_object:
-                            cert = ssl_object.getpeercert(binary_form=False)
-                            if cert and "notAfter" in cert:
-                                # Формат даты: 'May 25 12:00:00 2024 GMT'
-                                date_str = cert["notAfter"]
-                                expires_at = datetime.strptime(
-                                    date_str, "%b %d %H:%M:%S %Y %Z"
-                                )
-                                result.ssl_expires_at = expires_at
-                                result.ssl_days_left = (
-                                    expires_at - datetime.utcnow()
-                                ).days
-
-            # Расчет времени отклика
-            end_time = time.perf_counter()
-            result.response_time_ms = int((end_time - start_time) * 1000)
+                # Извлечение SSL сертификата
+                if (
+                    url.startswith("https://")
+                    and response.connection
+                    and response.connection.transport
+                ):
+                    ssl_object = response.connection.transport.get_extra_info(
+                        "ssl_object"
+                    )
+                    if ssl_object:
+                        cert = ssl_object.getpeercert(binary_form=False)
+                        not_after = cert.get("notAfter") if cert else None
+                        if not_after:
+                            expires_at = datetime.strptime(
+                                not_after, self._CERT_TIME_FMT
+                            ).replace(tzinfo=timezone.utc)
+                            result.ssl_expires_at = expires_at
+                            result.ssl_days_left = (
+                                expires_at - datetime.now(timezone.utc)
+                            ).days
 
         except asyncio.TimeoutError:
-            result.is_up = False
             result.error = "Connection timed out"
-
-        except Exception as e:
-            result.is_up = False
+        except aiohttp.ClientError as e:
             result.error = str(e)
+        except Exception as e:
+            result.error = str(e)
+        finally:
+            result.response_time_ms = int((time.perf_counter() - start_time) * 1000)
 
         return result
